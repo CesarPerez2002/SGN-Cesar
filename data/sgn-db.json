@@ -1,0 +1,64 @@
+{
+  "schemaVersion": 2,
+  "nextIds": {
+    "user": 2,
+    "category": 2,
+    "product": 2,
+    "customer": 1,
+    "supplier": 1,
+    "sale": 1,
+    "saleItem": 1,
+    "purchase": 1,
+    "purchaseItem": 1
+  },
+  "businessProfile": {
+    "businessName": "Mi Negocio",
+    "legalName": "",
+    "rtn": "",
+    "phone": "",
+    "email": "",
+    "address": "",
+    "cai": "",
+    "invoiceFooter": "Gracias por su compra.",
+    "updatedAt": "2026-11-17T02:06:49.088Z"
+  },
+  "users": [
+    {
+      "id": 1,
+      "fullName": "Administrador General",
+      "username": "admin",
+      "email": "admin@sgn-negocios.com",
+      "passwordHash": "677da7abfe37d51a4e1677055381a61b:a8a67a81690e8dbb1af3ca7319a898e6fd8adac0980d3fb27a57c6a0d0597194b3673d60b4521279d74ebe6c4ea1d19daa1ff8a26a275738ad72e3dfc90a5087",
+      "role": "Administrador",
+      "active": true,
+      "createdAt": "2026-11-17T02:06:49.088Z",
+      "lastLoginAt": "2026-11-17T03:55:49.839Z"
+    }
+  ],
+  "categories": [
+    {
+      "id": 1,
+      "name": "Lacteos",
+      "description": "Productos Lacteos"
+    }
+  ],
+  "products": [
+    {
+      "id": 1,
+      "sku": "1",
+      "name": "Lecha Sula",
+      "description": "340 mL",
+      "categoryId": 1,
+      "salePrice": 35,
+      "costPrice": 30,
+      "stock": 20,
+      "minStock": 5,
+      "active": true,
+      "updatedAt": "2026-11-17T02:09:31.062Z"
+    }
+  ],
+  "customers": [],
+  "suppliers": [],
+  "sales": [],
+  "purchases": []
+}
