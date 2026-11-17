@@ -24,7 +24,7 @@ import type {
   Usuario,
   Venta,
 } from '../shared/types.ts';
-import { DomainError, hashPassword, verifyPassword } from './repository.ts';
+import { DomainError, hashPassword, verifyPassword } from './security.ts';
 
 export interface SqlServerEnvConfig {
   server: string;

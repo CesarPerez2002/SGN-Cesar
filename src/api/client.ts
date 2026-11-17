@@ -69,7 +69,7 @@ async function apiRequest<T>(path: string, options: RequestInit = {}): Promise<T
 
 export const sgnApi = {
   getPublicBusinessInfo() {
-    return apiRequest<{ businessName: string }>('/api/public/business-info');
+    return apiRequest<{ businessName: string; dbConfigured?: boolean }>('/api/public/business-info');
   },
   login(identifier: string, password: string) {
     return apiRequest<{ token: string; user: Usuario }>('/api/auth/login', {

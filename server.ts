@@ -3,7 +3,7 @@ import crypto from 'node:crypto';
 import path from 'node:path';
 import express, { type NextFunction, type Request, type Response } from 'express';
 import { createServer as createViteServer } from 'vite';
-import { DomainError, SgnRepository } from './src/server/repository.ts';
+import { DomainError } from './src/server/security.ts';
 import {
   buildSqlServerConfigFromEnv,
   SqlServerRepository,
@@ -12,8 +12,6 @@ import type { RolUsuario, Usuario } from './src/shared/types.ts';
 
 const PORT = 3000;
 const TOKEN_SECRET = process.env.SGN_SESSION_SECRET || 'sgn-dev-secret-key-2026';
-
-type ActiveRepository = SgnRepository | SqlServerRepository;
 
 interface AuthenticatedRequest extends Request {
   currentUser?: Usuario;
@@ -56,31 +54,53 @@ function verifySessionToken(token: string): number | null {
   }
 }
 
-async function createRepository(): Promise<{ repo: ActiveRepository; engine: string }> {
-  const sqlConfig = buildSqlServerConfigFromEnv();
-  if (sqlConfig) {
+async function initSqlServer(): Promise<{
+  repo: SqlServerRepository | null;
+  configError: string | null;
+}> {
+  try {
+    const sqlConfig = buildSqlServerConfigFromEnv();
+    if (!sqlConfig) {
+      const msg =
+        'Base de datos Microsoft SQL Server no configurada. Configure MSSQL_SERVER, MSSQL_DATABASE, MSSQL_USER y MSSQL_PASSWORD en el archivo .env.';
+      console.warn(msg);
+      return { repo: null, configError: msg };
+    }
+
     const repo = await SqlServerRepository.connect(sqlConfig);
     const target = sqlConfig.options.instanceName
       ? `${sqlConfig.server}\\${sqlConfig.options.instanceName}/${sqlConfig.database}`
       : `${sqlConfig.server}:${sqlConfig.port}/${sqlConfig.database}`;
     console.log(`SGN conectado a Microsoft SQL Server (${target})`);
-    return { repo, engine: 'sqlserver' };
+    return { repo, configError: null };
+  } catch (err) {
+    const detail = err instanceof Error ? err.message : String(err);
+    const msg = `No se pudo conectar a Microsoft SQL Server: ${detail}`;
+    console.error(msg);
+    return { repo: null, configError: msg };
   }
-
-  console.log(
-    'SGN usando almacenamiento local JSON (defina MSSQL_SERVER en .env para conectar SQL Server local).',
-  );
-  return { repo: new SgnRepository(), engine: 'json' };
 }
 
 async function startServer() {
   const app = express();
-  const { repo } = await createRepository();
+  let { repo, configError } = await initSqlServer();
+
+  const requireDatabase = (): SqlServerRepository => {
+    if (!repo) {
+      throw new DomainError(
+        configError ??
+          'Base de datos Microsoft SQL Server no configurada en el archivo .env.',
+        503,
+      );
+    }
+    return repo;
+  };
 
   app.use(express.json());
 
   const requireAuth = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
     try {
+      const db = requireDatabase();
       const authHeader = req.headers.authorization;
       const token = authHeader?.startsWith('Bearer ') ? authHeader.slice(7).trim() : '';
       if (!token) {
@@ -94,7 +114,7 @@ async function startServer() {
         return;
       }
 
-      const user = await repo.getUserById(userId);
+      const user = await db.getUserById(userId);
       if (!user || !user.active) {
         res.status(401).json({ error: 'Usuario no válido o inactivo.' });
         return;
@@ -103,6 +123,10 @@ async function startServer() {
       req.currentUser = user;
       next();
     } catch (err) {
+      if (err instanceof DomainError) {
+        res.status(err.status).json({ error: err.message });
+        return;
+      }
       console.error('Error al validar sesión en SGN:', err);
       res.status(500).json({ error: 'Error interno al verificar la sesión.' });
     }
@@ -139,8 +163,12 @@ async function startServer() {
   app.get(
     '/api/public/business-info',
     handleRoute(async (_req, res) => {
+      if (!repo) {
+        res.json({ businessName: 'Mi Negocio', dbConfigured: false });
+        return;
+      }
       const profile = await repo.getBusinessProfile();
-      res.json({ businessName: profile.businessName });
+      res.json({ businessName: profile.businessName, dbConfigured: true });
     }),
   );
 
@@ -148,8 +176,9 @@ async function startServer() {
   app.post(
     '/api/auth/login',
     handleRoute(async (req, res) => {
+      const db = requireDatabase();
       const { identifier, password } = req.body ?? {};
-      const user = await repo.authenticate(String(identifier ?? ''), String(password ?? ''));
+      const user = await db.authenticate(String(identifier ?? ''), String(password ?? ''));
       const token = signSessionToken(user.id);
       res.json({ token, user });
     }),
@@ -172,7 +201,7 @@ async function startServer() {
     '/api/business-profile',
     requireAuth,
     handleRoute(async (_req, res) => {
-      res.json(await repo.getBusinessProfile());
+      res.json(await requireDatabase().getBusinessProfile());
     }),
   );
 
@@ -181,7 +210,7 @@ async function startServer() {
     requireAuth,
     requireRole('Administrador'),
     handleRoute(async (req, res) => {
-      const updated = await repo.updateBusinessProfile(req.body ?? {});
+      const updated = await requireDatabase().updateBusinessProfile(req.body ?? {});
       res.json(updated);
     }),
   );
@@ -191,7 +220,7 @@ async function startServer() {
     '/api/dashboard',
     requireAuth,
     handleRoute(async (req, res) => {
-      res.json(await repo.getDashboardSummary(req.currentUser!.role));
+      res.json(await requireDatabase().getDashboardSummary(req.currentUser!.role));
     }),
   );
 
@@ -200,7 +229,7 @@ async function startServer() {
     '/api/categories',
     requireAuth,
     handleRoute(async (_req, res) => {
-      res.json(await repo.listCategories());
+      res.json(await requireDatabase().listCategories());
     }),
   );
 
@@ -209,7 +238,7 @@ async function startServer() {
     requireAuth,
     requireRole('Administrador'),
     handleRoute(async (req, res) => {
-      const category = await repo.createCategory(req.body ?? {});
+      const category = await requireDatabase().createCategory(req.body ?? {});
       res.status(201).json(category);
     }),
   );
@@ -219,7 +248,10 @@ async function startServer() {
     requireAuth,
     requireRole('Administrador'),
     handleRoute(async (req, res) => {
-      const category = await repo.updateCategory(Number(req.params.id), req.body ?? {});
+      const category = await requireDatabase().updateCategory(
+        Number(req.params.id),
+        req.body ?? {},
+      );
       res.json(category);
     }),
   );
@@ -229,7 +261,7 @@ async function startServer() {
     requireAuth,
     requireRole('Administrador'),
     handleRoute(async (req, res) => {
-      await repo.deleteCategory(Number(req.params.id));
+      await requireDatabase().deleteCategory(Number(req.params.id));
       res.json({ ok: true });
     }),
   );
@@ -239,7 +271,7 @@ async function startServer() {
     '/api/products',
     requireAuth,
     handleRoute(async (_req, res) => {
-      res.json(await repo.listProducts());
+      res.json(await requireDatabase().listProducts());
     }),
   );
 
@@ -248,7 +280,7 @@ async function startServer() {
     requireAuth,
     requireRole('Administrador'),
     handleRoute(async (req, res) => {
-      const product = await repo.createProduct(req.body ?? {});
+      const product = await requireDatabase().createProduct(req.body ?? {});
       res.status(201).json(product);
     }),
   );
@@ -258,7 +290,7 @@ async function startServer() {
     requireAuth,
     requireRole('Administrador'),
     handleRoute(async (req, res) => {
-      const product = await repo.updateProduct(Number(req.params.id), req.body ?? {});
+      const product = await requireDatabase().updateProduct(Number(req.params.id), req.body ?? {});
       res.json(product);
     }),
   );
@@ -268,7 +300,7 @@ async function startServer() {
     '/api/customers',
     requireAuth,
     handleRoute(async (_req, res) => {
-      res.json(await repo.listCustomers());
+      res.json(await requireDatabase().listCustomers());
     }),
   );
 
@@ -276,7 +308,7 @@ async function startServer() {
     '/api/customers',
     requireAuth,
     handleRoute(async (req, res) => {
-      const customer = await repo.createCustomer(req.body ?? {});
+      const customer = await requireDatabase().createCustomer(req.body ?? {});
       res.status(201).json(customer);
     }),
   );
@@ -285,7 +317,10 @@ async function startServer() {
     '/api/customers/:id',
     requireAuth,
     handleRoute(async (req, res) => {
-      const customer = await repo.updateCustomer(Number(req.params.id), req.body ?? {});
+      const customer = await requireDatabase().updateCustomer(
+        Number(req.params.id),
+        req.body ?? {},
+      );
       res.json(customer);
     }),
   );
@@ -296,7 +331,7 @@ async function startServer() {
     requireAuth,
     requireRole('Administrador'),
     handleRoute(async (_req, res) => {
-      res.json(await repo.listSuppliers());
+      res.json(await requireDatabase().listSuppliers());
     }),
   );
 
@@ -305,7 +340,7 @@ async function startServer() {
     requireAuth,
     requireRole('Administrador'),
     handleRoute(async (req, res) => {
-      const supplier = await repo.createSupplier(req.body ?? {});
+      const supplier = await requireDatabase().createSupplier(req.body ?? {});
       res.status(201).json(supplier);
     }),
   );
@@ -315,7 +350,10 @@ async function startServer() {
     requireAuth,
     requireRole('Administrador'),
     handleRoute(async (req, res) => {
-      const supplier = await repo.updateSupplier(Number(req.params.id), req.body ?? {});
+      const supplier = await requireDatabase().updateSupplier(
+        Number(req.params.id),
+        req.body ?? {},
+      );
       res.json(supplier);
     }),
   );
@@ -325,7 +363,7 @@ async function startServer() {
     '/api/sales',
     requireAuth,
     handleRoute(async (_req, res) => {
-      res.json(await repo.listSales());
+      res.json(await requireDatabase().listSales());
     }),
   );
 
@@ -333,7 +371,7 @@ async function startServer() {
     '/api/sales',
     requireAuth,
     handleRoute(async (req, res) => {
-      const sale = await repo.createSale(req.currentUser!, req.body ?? {});
+      const sale = await requireDatabase().createSale(req.currentUser!, req.body ?? {});
       res.status(201).json(sale);
     }),
   );
@@ -344,7 +382,7 @@ async function startServer() {
     requireAuth,
     requireRole('Administrador'),
     handleRoute(async (_req, res) => {
-      res.json(await repo.listPurchases());
+      res.json(await requireDatabase().listPurchases());
     }),
   );
 
@@ -353,7 +391,7 @@ async function startServer() {
     requireAuth,
     requireRole('Administrador'),
     handleRoute(async (req, res) => {
-      const purchase = await repo.createPurchase(req.currentUser!, req.body ?? {});
+      const purchase = await requireDatabase().createPurchase(req.currentUser!, req.body ?? {});
       res.status(201).json(purchase);
     }),
   );
@@ -363,7 +401,7 @@ async function startServer() {
     requireAuth,
     requireRole('Administrador'),
     handleRoute(async (req, res) => {
-      const purchase = await repo.confirmPurchase(Number(req.params.id));
+      const purchase = await requireDatabase().confirmPurchase(Number(req.params.id));
       res.json(purchase);
     }),
   );
@@ -374,7 +412,7 @@ async function startServer() {
     requireAuth,
     requireRole('Administrador'),
     handleRoute(async (_req, res) => {
-      res.json(await repo.listUsers());
+      res.json(await requireDatabase().listUsers());
     }),
   );
 
@@ -383,7 +421,7 @@ async function startServer() {
     requireAuth,
     requireRole('Administrador'),
     handleRoute(async (req, res) => {
-      const user = await repo.createUser(req.body ?? {});
+      const user = await requireDatabase().createUser(req.body ?? {});
       res.status(201).json(user);
     }),
   );
@@ -393,7 +431,11 @@ async function startServer() {
     requireAuth,
     requireRole('Administrador'),
     handleRoute(async (req, res) => {
-      const user = await repo.updateUser(Number(req.params.id), req.currentUser!.id, req.body ?? {});
+      const user = await requireDatabase().updateUser(
+        Number(req.params.id),
+        req.currentUser!.id,
+        req.body ?? {},
+      );
       res.json(user);
     }),
   );

@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { hashPassword, verifyPassword } from './security.ts';
 import { buildSqlServerConfigFromEnv } from './sqlserver-repository.ts';
 
 test('buildSqlServerConfigFromEnv returns null when MSSQL_SERVER is empty', () => {
@@ -61,4 +62,11 @@ test('buildSqlServerConfigFromEnv throws helpful error if MSSQL_USER is missing'
       }),
     /MSSQL_USER/,
   );
+});
+
+test('hashPassword and verifyPassword securely validate user passwords', () => {
+  const hash = hashPassword('Admin123!');
+  assert.ok(hash.includes(':'));
+  assert.equal(verifyPassword('Admin123!', hash), true);
+  assert.equal(verifyPassword('WrongPass', hash), false);
 });
