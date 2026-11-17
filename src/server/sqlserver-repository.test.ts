@@ -23,7 +23,9 @@ test('buildSqlServerConfigFromEnv parses host and port for local SQL Server', ()
     database: 'SGN_Negocios',
     user: 'sa',
     password: 'MiPassword123!',
+    driver: 'tedious',
     options: {
+      trustedConnection: false,
       encrypt: false,
       trustServerCertificate: true,
     },
@@ -45,10 +47,34 @@ test('buildSqlServerConfigFromEnv supports SQL Server Express named instances', 
     database: 'SGN_Local',
     user: 'sgn_app',
     password: 'secret',
+    driver: 'tedious',
     options: {
       instanceName: 'SQLEXPRESS',
+      trustedConnection: false,
       encrypt: true,
       trustServerCertificate: false,
+    },
+  });
+});
+
+test('buildSqlServerConfigFromEnv supports (localdb)\\MSSQLLocalDB with Windows Auth', () => {
+  const config = buildSqlServerConfigFromEnv({
+    MSSQL_SERVER: '(localdb)\\MSSQLLocalDB',
+    MSSQL_DATABASE: 'SGN_Negocios',
+    MSSQL_TRUSTED_CONNECTION: 'true',
+  });
+
+  assert.deepEqual(config, {
+    server: '(localdb)',
+    database: 'SGN_Negocios',
+    user: '',
+    password: '',
+    driver: 'msnodesqlv8',
+    options: {
+      instanceName: 'MSSQLLocalDB',
+      trustedConnection: true,
+      encrypt: false,
+      trustServerCertificate: true,
     },
   });
 });

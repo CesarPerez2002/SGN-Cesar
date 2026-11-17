@@ -68,9 +68,11 @@ async function initSqlServer(): Promise<{
     }
 
     const repo = await SqlServerRepository.connect(sqlConfig);
-    const target = sqlConfig.options.instanceName
-      ? `${sqlConfig.server}\\${sqlConfig.options.instanceName}/${sqlConfig.database}`
-      : `${sqlConfig.server}:${sqlConfig.port}/${sqlConfig.database}`;
+    const target = sqlConfig.connectionString
+      ? `${sqlConfig.database} (cadena personalizada)`
+      : sqlConfig.options.instanceName
+        ? `${sqlConfig.server}\\${sqlConfig.options.instanceName}/${sqlConfig.database}`
+        : `${sqlConfig.server}:${sqlConfig.port}/${sqlConfig.database}`;
     console.log(`SGN conectado a Microsoft SQL Server (${target})`);
     return { repo, configError: null };
   } catch (err) {

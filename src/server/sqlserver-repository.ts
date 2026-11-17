@@ -32,8 +32,12 @@ export interface SqlServerEnvConfig {
   database: string;
   user: string;
   password: string;
+  driver?: 'tedious' | 'msnodesqlv8';
+  odbcDriver?: string;
+  connectionString?: string;
   options: {
     instanceName?: string;
+    trustedConnection?: boolean;
     encrypt: boolean;
     trustServerCertificate: boolean;
   };
@@ -50,31 +54,60 @@ function parseBool(value: string | undefined, fallback: boolean): boolean {
 export function buildSqlServerConfigFromEnv(
   env: NodeJS.ProcessEnv = process.env,
 ): SqlServerEnvConfig | null {
+  const connectionString = (env.MSSQL_CONNECTION_STRING ?? '').trim();
+  const database = (env.MSSQL_DATABASE ?? 'SGN_Negocios').trim() || 'SGN_Negocios';
+  const encrypt = parseBool(env.MSSQL_ENCRYPT, false);
+  const trustServerCertificate = parseBool(env.MSSQL_TRUST_SERVER_CERTIFICATE, true);
+  const odbcDriver = (env.MSSQL_ODBC_DRIVER ?? '').trim() || undefined;
+
+  if (connectionString) {
+    const usesNativeDriver =
+      /trusted_connection\s*=\s*(yes|true|1)/i.test(connectionString) ||
+      /\(localdb\)/i.test(connectionString);
+    return {
+      server: 'custom',
+      database,
+      user: '',
+      password: '',
+      driver: usesNativeDriver ? 'msnodesqlv8' : 'tedious',
+      odbcDriver,
+      connectionString,
+      options: {
+        trustedConnection: usesNativeDriver,
+        encrypt,
+        trustServerCertificate,
+      },
+    };
+  }
+
   const rawServer = (env.MSSQL_SERVER ?? '').trim();
   if (!rawServer) return null;
 
   let server = rawServer;
   let instanceName = (env.MSSQL_INSTANCE ?? '').trim() || undefined;
 
-  // Support host\INSTANCE format directly in MSSQL_SERVER (e.g. localhost\SQLEXPRESS)
+  // Support host\INSTANCE or (localdb)\MSSQLLocalDB format directly in MSSQL_SERVER
   if (!instanceName && rawServer.includes('\\')) {
     const [hostPart, instPart] = rawServer.split('\\');
     server = hostPart.trim() || 'localhost';
     instanceName = instPart?.trim() || undefined;
   }
 
-  const database = (env.MSSQL_DATABASE ?? 'SGN_Negocios').trim() || 'SGN_Negocios';
+  const isLocalDb = server.toLowerCase() === '(localdb)';
   const user = (env.MSSQL_USER ?? '').trim();
   const password = env.MSSQL_PASSWORD ?? '';
+  const trustedConnection =
+    parseBool(env.MSSQL_TRUSTED_CONNECTION, false) || (isLocalDb && !user);
 
-  if (!user) {
+  if (!trustedConnection && !user) {
     throw new Error(
-      'MSSQL_SERVER está definido, pero falta MSSQL_USER para autenticar en SQL Server.',
+      'MSSQL_SERVER está definido, pero falta MSSQL_USER para autenticar en SQL Server (o active MSSQL_TRUSTED_CONNECTION=true para Autenticación de Windows).',
     );
   }
 
+  const useNativeDriver = trustedConnection || isLocalDb;
   const parsedPort = Number(env.MSSQL_PORT);
-  const port = !instanceName
+  const port = !instanceName && !isLocalDb
     ? Number.isInteger(parsedPort) && parsedPort > 0
       ? parsedPort
       : 1433
@@ -86,10 +119,13 @@ export function buildSqlServerConfigFromEnv(
     database,
     user,
     password,
+    driver: useNativeDriver ? 'msnodesqlv8' : 'tedious',
+    ...(odbcDriver ? { odbcDriver } : {}),
     options: {
       ...(instanceName ? { instanceName } : {}),
-      encrypt: parseBool(env.MSSQL_ENCRYPT, false),
-      trustServerCertificate: parseBool(env.MSSQL_TRUST_SERVER_CERTIFICATE, true),
+      trustedConnection,
+      encrypt,
+      trustServerCertificate,
     },
   };
 }
@@ -285,16 +321,95 @@ END;
 
 export class SqlServerRepository {
   private pool: sql.ConnectionPool;
+  private sqlDriver: typeof sql;
 
-  private constructor(pool: sql.ConnectionPool) {
+  private constructor(pool: sql.ConnectionPool, sqlDriver: typeof sql = sql) {
     this.pool = pool;
+    this.sqlDriver = sqlDriver;
   }
 
-  static async connect(envConfig: SqlServerEnvConfig): Promise<SqlServerRepository> {
+  private static buildOdbcConnectionString(
+    envConfig: SqlServerEnvConfig,
+    driverName: string,
+    targetDatabase: string,
+  ): string {
+    const serverTarget = envConfig.options.instanceName
+      ? `${envConfig.server}\\${envConfig.options.instanceName}`
+      : `${envConfig.server},${envConfig.port ?? 1433}`;
+    const authPart = envConfig.options.trustedConnection
+      ? 'Trusted_Connection=Yes;'
+      : `Uid=${envConfig.user};Pwd=${envConfig.password};`;
+    const encryptPart = `Encrypt=${envConfig.options.encrypt ? 'Yes' : 'No'};TrustServerCertificate=${envConfig.options.trustServerCertificate ? 'Yes' : 'No'};`;
+    return `Driver={${driverName}};Server=${serverTarget};Database=${targetDatabase};${authPart}${encryptPart}`;
+  }
+
+  private static isOdbcDriverMissingError(err: unknown): boolean {
+    const msg = err instanceof Error ? err.message : String(err);
+    return (
+      msg.includes('IM002') ||
+      /data source name not found/i.test(msg) ||
+      /no se encuentra el nombre del origen de datos/i.test(msg)
+    );
+  }
+
+  private static isDatabaseMissingError(err: unknown): boolean {
+    const msg = err instanceof Error ? err.message : String(err);
+    return (
+      /cannot open database/i.test(msg) ||
+      /no se puede abrir la base de datos/i.test(msg)
+    );
+  }
+
+  private static async openPool(
+    activeSql: typeof sql,
+    envConfig: SqlServerEnvConfig,
+    targetDatabase: string,
+  ): Promise<sql.ConnectionPool> {
+    if (envConfig.driver === 'msnodesqlv8') {
+      if (envConfig.connectionString) {
+        const pool = new activeSql.ConnectionPool({
+          connectionString: envConfig.connectionString,
+          pool: { max: 10, min: 0, idleTimeoutMillis: 30000 },
+        } as unknown as SqlConfig);
+        return pool.connect();
+      }
+
+      const candidateDrivers = envConfig.odbcDriver
+        ? [envConfig.odbcDriver]
+        : [
+            'ODBC Driver 18 for SQL Server',
+            'ODBC Driver 17 for SQL Server',
+            'SQL Server Native Client 11.0',
+            'SQL Server',
+          ];
+
+      let lastErr: unknown;
+      for (const driverName of candidateDrivers) {
+        const connStr = SqlServerRepository.buildOdbcConnectionString(
+          envConfig,
+          driverName,
+          targetDatabase,
+        );
+        try {
+          const pool = new activeSql.ConnectionPool({
+            connectionString: connStr,
+            pool: { max: 10, min: 0, idleTimeoutMillis: 30000 },
+          } as unknown as SqlConfig);
+          return await pool.connect();
+        } catch (err) {
+          lastErr = err;
+          if (!SqlServerRepository.isOdbcDriverMissingError(err)) {
+            throw err;
+          }
+        }
+      }
+      throw lastErr;
+    }
+
     const poolConfig: SqlConfig = {
       server: envConfig.server,
       ...(envConfig.port !== undefined ? { port: envConfig.port } : {}),
-      database: envConfig.database,
+      database: targetDatabase,
       user: envConfig.user,
       password: envConfig.password,
       options: envConfig.options,
@@ -305,8 +420,50 @@ export class SqlServerRepository {
       },
     };
 
-    const pool = await new sql.ConnectionPool(poolConfig).connect();
-    const repo = new SqlServerRepository(pool);
+    return new activeSql.ConnectionPool(poolConfig).connect();
+  }
+
+  static async connect(envConfig: SqlServerEnvConfig): Promise<SqlServerRepository> {
+    let activeSql: typeof sql = sql;
+    if (envConfig.driver === 'msnodesqlv8') {
+      try {
+        const mod = await import('mssql/msnodesqlv8');
+        activeSql = ((mod as { default?: unknown }).default ?? mod) as unknown as typeof sql;
+      } catch {
+        throw new Error(
+          'Para conectar con (localdb)\\MSSQLLocalDB o Autenticación de Windows en Node.js, ejecute primero en la terminal: npm install msnodesqlv8',
+        );
+      }
+    }
+
+    let pool: sql.ConnectionPool;
+    try {
+      pool = await SqlServerRepository.openPool(activeSql, envConfig, envConfig.database);
+    } catch (err) {
+      if (!envConfig.connectionString && SqlServerRepository.isDatabaseMissingError(err)) {
+        // Connect to master to auto-create the database on local SQL Server if missing
+        const masterPool = await SqlServerRepository.openPool(activeSql, envConfig, 'master');
+        try {
+          await masterPool
+            .request()
+            .input('DbName', activeSql.NVarChar(128), envConfig.database)
+            .query(`
+              IF DB_ID(@DbName) IS NULL
+              BEGIN
+                DECLARE @createSql NVARCHAR(MAX) = N'CREATE DATABASE ' + QUOTENAME(@DbName);
+                EXEC sp_executesql @createSql;
+              END
+            `);
+        } finally {
+          await masterPool.close();
+        }
+        pool = await SqlServerRepository.openPool(activeSql, envConfig, envConfig.database);
+      } else {
+        throw err;
+      }
+    }
+
+    const repo = new SqlServerRepository(pool, activeSql);
     await repo.ensureSchemaAndInitialAdmin();
     return repo;
   }
@@ -1371,7 +1528,7 @@ export class SqlServerRepository {
     }));
 
     const businessSnapshot = await this.getBusinessProfile();
-    const tx = new sql.Transaction(this.pool);
+    const tx = new this.sqlDriver.Transaction(this.pool);
     await tx.begin();
 
     try {
@@ -1644,7 +1801,7 @@ export class SqlServerRepository {
     const includeTax = Boolean(input.includeTax);
     const notes = (input.notes ?? '').trim();
 
-    const tx = new sql.Transaction(this.pool);
+    const tx = new this.sqlDriver.Transaction(this.pool);
     await tx.begin();
 
     try {
@@ -1775,7 +1932,7 @@ export class SqlServerRepository {
   }
 
   async confirmPurchase(id: number): Promise<Compra> {
-    const tx = new sql.Transaction(this.pool);
+    const tx = new this.sqlDriver.Transaction(this.pool);
     await tx.begin();
 
     try {
