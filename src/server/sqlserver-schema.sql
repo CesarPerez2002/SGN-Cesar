@@ -1,7 +1,7 @@
 -- ============================================================================
 -- SGN - Sistema para Gestión de Negocios
 -- Esquema Relacional para Microsoft SQL Server (T-SQL)
--- Preparado para futura integración mediante mssql / Tedious
+-- Integración mediante mssql / Tedious
 -- Moneda: Lempiras de Honduras (HNL) | Impuesto: ISV 15% | RTN
 -- ============================================================================
 
