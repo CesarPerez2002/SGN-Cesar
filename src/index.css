@@ -27,6 +27,18 @@
     visibility: hidden;
   }
 
+  .sgn-modal-backdrop,
+  .sgn-modal-panel {
+    position: static !important;
+    transform: none !important;
+    opacity: 1 !important;
+    backdrop-filter: none !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    border: none !important;
+    padding: 0 !important;
+  }
+
   .sgn-printable-invoice,
   .sgn-printable-invoice * {
     visibility: visible;

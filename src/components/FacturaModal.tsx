@@ -1,22 +1,36 @@
+import { useEffect, useState } from 'react';
 import { jsPDF } from 'jspdf';
 import { Download, Printer, X } from 'lucide-react';
 import { formatCurrency, formatDateTime } from '../shared/businessLogic.ts';
 import type { Venta } from '../shared/types.ts';
+import { AnimatedModal } from './MotionPrimitives.tsx';
 
 interface FacturaModalProps {
-  sale: Venta;
+  sale: Venta | null;
   onClose: () => void;
 }
 
 export function FacturaModal({ sale, onClose }: FacturaModalProps) {
-  const biz = sale.businessSnapshot;
-  const invoiceCode = sale.invoiceNumber || sale.folio;
+  const [renderedSale, setRenderedSale] = useState<Venta | null>(sale);
+
+  useEffect(() => {
+    if (sale) {
+      setRenderedSale(sale);
+    }
+  }, [sale]);
+
+  const activeSale = sale ?? renderedSale;
+  if (!activeSale) return null;
+
+  const biz = activeSale.businessSnapshot;
+  const invoiceCode = activeSale.invoiceNumber || activeSale.folio;
 
   function handlePrint() {
     window.print();
   }
 
   function handleDownloadPdf() {
+    if (!activeSale) return;
     const doc = new jsPDF({ unit: 'pt', format: 'letter' });
     const pageWidth = doc.internal.pageSize.getWidth();
     const margin = 44;
@@ -64,15 +78,15 @@ export function FacturaModal({ sale, onClose }: FacturaModalProps) {
     let rightY = 66;
     doc.setFontSize(9.5);
     doc.setTextColor(71, 85, 105);
-    doc.text(`Fecha: ${formatDateTime(sale.createdAt)}`, pageWidth - margin, rightY, {
+    doc.text(`Fecha: ${formatDateTime(activeSale.createdAt)}`, pageWidth - margin, rightY, {
       align: 'right',
     });
     rightY += 13;
-    doc.text(`Folio venta: ${sale.folio}`, pageWidth - margin, rightY, { align: 'right' });
+    doc.text(`Folio venta: ${activeSale.folio}`, pageWidth - margin, rightY, { align: 'right' });
     rightY += 13;
-    doc.text(`Pago: ${sale.paymentMethod}`, pageWidth - margin, rightY, { align: 'right' });
+    doc.text(`Pago: ${activeSale.paymentMethod}`, pageWidth - margin, rightY, { align: 'right' });
     rightY += 13;
-    doc.text(`Atendió: ${sale.userName}`, pageWidth - margin, rightY, { align: 'right' });
+    doc.text(`Atendió: ${activeSale.userName}`, pageWidth - margin, rightY, { align: 'right' });
 
     y = Math.max(y, rightY) + 16;
 
@@ -91,18 +105,18 @@ export function FacturaModal({ sale, onClose }: FacturaModalProps) {
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(9.5);
     doc.setTextColor(51, 65, 85);
-    doc.text(`Cliente: ${sale.customerName}`, margin, y);
+    doc.text(`Cliente: ${activeSale.customerName}`, margin, y);
     y += 13;
     const custMeta = [
-      sale.customerTaxId ? `RTN: ${sale.customerTaxId}` : 'RTN: Consumidor Final',
-      sale.customerPhone ? `Tel: ${sale.customerPhone}` : '',
+      activeSale.customerTaxId ? `RTN: ${activeSale.customerTaxId}` : 'RTN: Consumidor Final',
+      activeSale.customerPhone ? `Tel: ${activeSale.customerPhone}` : '',
     ]
       .filter(Boolean)
       .join(' · ');
     doc.text(custMeta, margin, y);
     y += 13;
-    if (sale.customerAddress) {
-      doc.text(`Dirección: ${sale.customerAddress}`, margin, y);
+    if (activeSale.customerAddress) {
+      doc.text(`Dirección: ${activeSale.customerAddress}`, margin, y);
       y += 13;
     }
 
@@ -128,7 +142,7 @@ export function FacturaModal({ sale, onClose }: FacturaModalProps) {
     // Items
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(9.5);
-    for (const item of sale.items) {
+    for (const item of activeSale.items) {
       y += 18;
       doc.setTextColor(71, 85, 105);
       doc.text(item.productSku, margin + 8, y);
@@ -155,11 +169,11 @@ export function FacturaModal({ sale, onClose }: FacturaModalProps) {
     doc.setFontSize(10);
     doc.setTextColor(71, 85, 105);
     doc.text('Subtotal:', labelX, y);
-    doc.text(formatCurrency(sale.subtotal), valX, y, { align: 'right' });
+    doc.text(formatCurrency(activeSale.subtotal), valX, y, { align: 'right' });
     y += 16;
 
-    doc.text(sale.includeTax ? 'ISV (15%):' : 'ISV (Exento):', labelX, y);
-    doc.text(formatCurrency(sale.tax), valX, y, { align: 'right' });
+    doc.text(activeSale.includeTax ? 'ISV (15%):' : 'ISV (Exento):', labelX, y);
+    doc.text(formatCurrency(activeSale.tax), valX, y, { align: 'right' });
     y += 18;
 
     doc.setDrawColor(203, 213, 225);
@@ -170,14 +184,14 @@ export function FacturaModal({ sale, onClose }: FacturaModalProps) {
     doc.setTextColor(15, 23, 42);
     doc.text('TOTAL:', labelX, y + 4);
     doc.setTextColor(29, 78, 216);
-    doc.text(formatCurrency(sale.total), valX, y + 4, { align: 'right' });
+    doc.text(formatCurrency(activeSale.total), valX, y + 4, { align: 'right' });
 
     y += 32;
-    if (sale.notes) {
+    if (activeSale.notes) {
       doc.setFont('helvetica', 'normal');
       doc.setFontSize(9);
       doc.setTextColor(71, 85, 105);
-      doc.text(`Observaciones: ${sale.notes}`, margin, y);
+      doc.text(`Observaciones: ${activeSale.notes}`, margin, y);
       y += 18;
     }
 
@@ -192,13 +206,13 @@ export function FacturaModal({ sale, onClose }: FacturaModalProps) {
   }
 
   return (
-    <div
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="invoice-modal-title"
-      className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 p-4 overflow-y-auto"
+    <AnimatedModal
+      open={Boolean(sale)}
+      onClose={onClose}
+      labelledBy="invoice-modal-title"
+      maxWidthClass="max-w-2xl"
+      overlayClassName="bg-slate-950/60"
     >
-      <div className="w-full max-w-2xl rounded-xl border border-slate-200 bg-white overflow-hidden my-auto">
         {/* Top Modal Controls (hidden on print) */}
         <div className="sgn-no-print flex flex-wrap items-center justify-between gap-3 px-6 py-4 border-b border-slate-200 bg-slate-50">
           <h3
@@ -261,25 +275,29 @@ export function FacturaModal({ sale, onClose }: FacturaModalProps) {
             <div className="sm:text-right space-y-1">
               <p className="text-xs font-medium text-slate-500">FACTURA</p>
               <p className="font-mono text-lg font-bold text-blue-700">{invoiceCode}</p>
-              <p className="text-xs text-slate-600">{formatDateTime(sale.createdAt)}</p>
-              <p className="text-xs text-slate-500 font-mono">Folio: {sale.folio}</p>
+              <p className="text-xs text-slate-600">{formatDateTime(activeSale.createdAt)}</p>
+              <p className="text-xs text-slate-500 font-mono">Folio: {activeSale.folio}</p>
             </div>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs bg-slate-50 rounded-lg border border-slate-200 p-4">
             <div className="space-y-1">
               <p className="font-semibold text-slate-900">Facturado a</p>
-              <p className="text-slate-800 font-medium">{sale.customerName}</p>
+              <p className="text-slate-800 font-medium">{activeSale.customerName}</p>
               <p className="text-slate-600 font-mono">
-                RTN: {sale.customerTaxId || 'Consumidor Final'}
+                RTN: {activeSale.customerTaxId || 'Consumidor Final'}
               </p>
-              {sale.customerAddress && <p className="text-slate-600">{sale.customerAddress}</p>}
+              {activeSale.customerAddress && (
+                <p className="text-slate-600">{activeSale.customerAddress}</p>
+              )}
             </div>
             <div className="space-y-1 sm:text-right">
               <p className="font-semibold text-slate-900">Detalles de operación</p>
-              <p className="text-slate-600">Método de pago: {sale.paymentMethod}</p>
-              <p className="text-slate-600">Atendido por: {sale.userName}</p>
-              {sale.customerPhone && <p className="text-slate-600">Tel: {sale.customerPhone}</p>}
+              <p className="text-slate-600">Método de pago: {activeSale.paymentMethod}</p>
+              <p className="text-slate-600">Atendido por: {activeSale.userName}</p>
+              {activeSale.customerPhone && (
+                <p className="text-slate-600">Tel: {activeSale.customerPhone}</p>
+              )}
             </div>
           </div>
 
@@ -295,7 +313,7 @@ export function FacturaModal({ sale, onClose }: FacturaModalProps) {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {sale.items.map((item) => (
+                {activeSale.items.map((item) => (
                   <tr key={item.id}>
                     <td className="py-2.5 px-3 font-mono text-slate-600 whitespace-nowrap">
                       {item.productSku}
@@ -318,29 +336,30 @@ export function FacturaModal({ sale, onClose }: FacturaModalProps) {
 
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-4 pt-2">
             <div className="text-xs text-slate-500 max-w-xs">
-              {sale.notes && <p className="mb-1 text-slate-700">Observaciones: {sale.notes}</p>}
+              {activeSale.notes && (
+                <p className="mb-1 text-slate-700">Observaciones: {activeSale.notes}</p>
+              )}
               <p>{biz.invoiceFooter || 'Gracias por su compra.'}</p>
             </div>
 
             <div className="w-full sm:w-64 space-y-1.5 text-sm border-t sm:border-t-0 border-slate-200 pt-3 sm:pt-0">
               <div className="flex justify-between text-slate-600">
                 <span>Subtotal</span>
-                <span className="font-mono tabular-nums">{formatCurrency(sale.subtotal)}</span>
+                <span className="font-mono tabular-nums">{formatCurrency(activeSale.subtotal)}</span>
               </div>
               <div className="flex justify-between text-slate-600">
-                <span>{sale.includeTax ? 'ISV (15%)' : 'ISV (Exento)'}</span>
-                <span className="font-mono tabular-nums">{formatCurrency(sale.tax)}</span>
+                <span>{activeSale.includeTax ? 'ISV (15%)' : 'ISV (Exento)'}</span>
+                <span className="font-mono tabular-nums">{formatCurrency(activeSale.tax)}</span>
               </div>
               <div className="flex justify-between font-bold text-slate-900 text-base pt-2 border-t border-slate-200">
                 <span>Total</span>
                 <span className="font-mono tabular-nums text-blue-700">
-                  {formatCurrency(sale.total)}
+                  {formatCurrency(activeSale.total)}
                 </span>
               </div>
             </div>
           </div>
         </div>
-      </div>
-    </div>
+    </AnimatedModal>
   );
 }

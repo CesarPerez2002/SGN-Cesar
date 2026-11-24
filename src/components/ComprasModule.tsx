@@ -17,7 +17,14 @@ import {
   formatDateTime,
   validatePurchaseCart,
 } from '../shared/businessLogic.ts';
+import { motion } from 'motion/react';
 import type { Compra, EstadoCompra, ModuloId, Producto, Proveedor } from '../shared/types.ts';
+import {
+  AnimatedModal,
+  AnimatedNotice,
+  AnimatedTabPanel,
+  SPRING_SNAPPY,
+} from './MotionPrimitives.tsx';
 
 interface ComprasModuleProps {
   purchases: Compra[];
@@ -64,6 +71,14 @@ export function ComprasModule({
   const [statusFilter, setStatusFilter] = useState<'all' | EstadoCompra>('all');
   const [historyQuery, setHistoryQuery] = useState('');
   const [selectedPurchase, setSelectedPurchase] = useState<Compra | null>(null);
+  const [renderedPurchase, setRenderedPurchase] = useState<Compra | null>(null);
+
+  useEffect(() => {
+    if (selectedPurchase) {
+      setRenderedPurchase(selectedPurchase);
+    }
+  }, [selectedPurchase]);
+  const modalPurchase = selectedPurchase ?? renderedPurchase;
 
   const productsById = useMemo(
     () => new Map(products.map((p) => [p.id, p])),
@@ -239,7 +254,7 @@ export function ComprasModule({
         </div>
       </div>
 
-      {error && (
+      <AnimatedNotice visible={Boolean(error)} noticeKey={error ?? 'cmp-error'}>
         <div
           role="alert"
           className="flex items-start gap-2.5 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800"
@@ -247,9 +262,9 @@ export function ComprasModule({
           <AlertTriangle className="w-4 h-4 text-red-600 shrink-0 mt-0.5" />
           <span>{error}</span>
         </div>
-      )}
+      </AnimatedNotice>
 
-      {feedback && (
+      <AnimatedNotice visible={Boolean(feedback)} noticeKey={feedback ?? 'cmp-feedback'}>
         <div
           role="status"
           className="flex items-center gap-2.5 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-900"
@@ -257,8 +272,9 @@ export function ComprasModule({
           <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
           <span>{feedback}</span>
         </div>
-      )}
+      </AnimatedNotice>
 
+      <AnimatedTabPanel tabKey={activeTab}>
       {activeTab === 'nueva' ? (
         products.length === 0 || suppliers.length === 0 ? (
           <section className="rounded-xl border border-slate-200 bg-white p-12 text-center space-y-4">
@@ -519,9 +535,12 @@ export function ComprasModule({
                 </div>
               </div>
 
-              <button
+              <motion.button
                 type="button"
                 disabled={submitting || cartDetails.length === 0}
+                whileHover={submitting || cartDetails.length === 0 ? undefined : { scale: 1.015 }}
+                whileTap={submitting || cartDetails.length === 0 ? undefined : { scale: 0.97 }}
+                transition={SPRING_SNAPPY}
                 onClick={handleSubmitPurchase}
                 className="w-full flex items-center justify-center gap-2 rounded-lg bg-gradient-to-r from-amber-600 to-orange-600 px-4 py-2.5 text-sm font-medium text-white hover:from-amber-700 hover:to-orange-700 disabled:opacity-50 transition-colors cursor-pointer"
               >
@@ -533,7 +552,7 @@ export function ComprasModule({
                       ? 'Confirmar compra e ingresar stock'
                       : 'Guardar orden pendiente'}
                 </span>
-              </button>
+              </motion.button>
             </section>
           </div>
         )
@@ -683,26 +702,27 @@ export function ComprasModule({
           )}
         </section>
       )}
+      </AnimatedTabPanel>
 
       {/* Purchase Detail Modal */}
-      {selectedPurchase && (
-        <div
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="purchase-modal-title"
-          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 p-4"
-        >
-          <div className="w-full max-w-xl rounded-xl border border-slate-200 bg-white overflow-hidden">
+      <AnimatedModal
+        open={Boolean(selectedPurchase)}
+        onClose={() => setSelectedPurchase(null)}
+        labelledBy="purchase-modal-title"
+        maxWidthClass="max-w-xl"
+      >
+        {modalPurchase && (
+          <>
             <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200">
               <div>
                 <h3
                   id="purchase-modal-title"
                   className="font-display text-base font-semibold text-slate-900"
                 >
-                  Detalle de Compra · <span className="font-mono">{selectedPurchase.folio}</span>
+                  Detalle de Compra · <span className="font-mono">{modalPurchase.folio}</span>
                 </h3>
                 <p className="text-xs text-slate-500 mt-0.5">
-                  {selectedPurchase.status} · {formatDateTime(selectedPurchase.createdAt)}
+                  {modalPurchase.status} · {formatDateTime(modalPurchase.createdAt)}
                 </p>
               </div>
               <button
@@ -720,25 +740,25 @@ export function ComprasModule({
                 <div>
                   <span className="text-slate-500 block">Proveedor</span>
                   <span className="font-medium text-slate-900">
-                    {selectedPurchase.supplierName}
+                    {modalPurchase.supplierName}
                   </span>
                 </div>
                 <div>
                   <span className="text-slate-500 block">Registrado por</span>
-                  <span className="font-medium text-slate-900">{selectedPurchase.userName}</span>
+                  <span className="font-medium text-slate-900">{modalPurchase.userName}</span>
                 </div>
-                {selectedPurchase.confirmedAt && (
+                {modalPurchase.confirmedAt && (
                   <div>
                     <span className="text-slate-500 block">Fecha de confirmación</span>
                     <span className="font-medium text-slate-900">
-                      {formatDateTime(selectedPurchase.confirmedAt)}
+                      {formatDateTime(modalPurchase.confirmedAt)}
                     </span>
                   </div>
                 )}
-                {selectedPurchase.notes && (
+                {modalPurchase.notes && (
                   <div>
                     <span className="text-slate-500 block">Notas</span>
-                    <span className="font-medium text-slate-900">{selectedPurchase.notes}</span>
+                    <span className="font-medium text-slate-900">{modalPurchase.notes}</span>
                   </div>
                 )}
               </div>
@@ -754,7 +774,7 @@ export function ComprasModule({
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
-                    {selectedPurchase.items.map((item) => (
+                    {modalPurchase.items.map((item) => (
                       <tr key={item.id}>
                         <td className="py-2.5 px-3">
                           <div className="font-medium text-slate-900">{item.productName}</div>
@@ -779,30 +799,30 @@ export function ComprasModule({
                 <div className="flex justify-between text-slate-600">
                   <span>Subtotal</span>
                   <span className="font-mono tabular-nums">
-                    {formatCurrency(selectedPurchase.subtotal)}
+                    {formatCurrency(modalPurchase.subtotal)}
                   </span>
                 </div>
                 <div className="flex justify-between text-slate-600">
-                  <span>{selectedPurchase.includeTax ? 'ISV (15%)' : 'ISV (Exento)'}</span>
+                  <span>{modalPurchase.includeTax ? 'ISV (15%)' : 'ISV (Exento)'}</span>
                   <span className="font-mono tabular-nums">
-                    {formatCurrency(selectedPurchase.tax)}
+                    {formatCurrency(modalPurchase.tax)}
                   </span>
                 </div>
                 <div className="flex justify-between font-semibold text-slate-900 text-base pt-1.5">
                   <span>Total</span>
                   <span className="font-mono tabular-nums">
-                    {formatCurrency(selectedPurchase.total)}
+                    {formatCurrency(modalPurchase.total)}
                   </span>
                 </div>
               </div>
             </div>
 
             <div className="px-6 py-3.5 bg-slate-50 border-t border-slate-200 flex items-center justify-end gap-3">
-              {selectedPurchase.status === 'Pendiente' && (
+              {modalPurchase.status === 'Pendiente' && (
                 <button
                   type="button"
-                  disabled={confirmingId === selectedPurchase.id}
-                  onClick={() => handleConfirmReceipt(selectedPurchase)}
+                  disabled={confirmingId === modalPurchase.id}
+                  onClick={() => handleConfirmReceipt(modalPurchase)}
                   className="rounded-lg bg-emerald-700 px-4 py-2 text-xs font-medium text-white hover:bg-emerald-800 cursor-pointer"
                 >
                   Confirmar recepción e inventario
@@ -816,9 +836,9 @@ export function ComprasModule({
                 Cerrar
               </button>
             </div>
-          </div>
-        </div>
-      )}
+          </>
+        )}
+      </AnimatedModal>
     </div>
   );
 }

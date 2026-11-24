@@ -13,6 +13,7 @@ import {
 import { sgnApi } from '../api/client.ts';
 import { formatCurrency, getStockStatus } from '../shared/businessLogic.ts';
 import type { Categoria, Producto, RolUsuario } from '../shared/types.ts';
+import { AnimatedModal, AnimatedNotice, AnimatedTabPanel } from './MotionPrimitives.tsx';
 
 interface InventarioModuleProps {
   products: Producto[];
@@ -251,7 +252,10 @@ export function InventarioModule({
         )}
       </div>
 
-      {error && !productModalOpen && !categoryModalOpen && (
+      <AnimatedNotice
+        visible={Boolean(error && !productModalOpen && !categoryModalOpen)}
+        noticeKey={error ?? 'inv-error'}
+      >
         <div
           role="alert"
           className="flex items-start gap-2.5 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800"
@@ -259,9 +263,9 @@ export function InventarioModule({
           <AlertTriangle className="w-4 h-4 text-red-600 shrink-0 mt-0.5" />
           <span>{error}</span>
         </div>
-      )}
+      </AnimatedNotice>
 
-      {feedback && (
+      <AnimatedNotice visible={Boolean(feedback)} noticeKey={feedback ?? 'inv-feedback'}>
         <div
           role="status"
           className="flex items-center gap-2.5 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-900"
@@ -269,8 +273,9 @@ export function InventarioModule({
           <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
           <span>{feedback}</span>
         </div>
-      )}
+      </AnimatedNotice>
 
+      <AnimatedTabPanel tabKey={activeTab}>
       {activeTab === 'productos' ? (
         <section className="rounded-xl border border-slate-200 bg-white overflow-hidden">
           <div className="p-4 border-b border-slate-200 flex flex-wrap items-center justify-between gap-3">
@@ -522,16 +527,15 @@ export function InventarioModule({
           )}
         </section>
       )}
+      </AnimatedTabPanel>
 
       {/* Product Create/Edit Modal */}
-      {productModalOpen && (
-        <div
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="product-modal-title"
-          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 p-4"
-        >
-          <div className="w-full max-w-lg rounded-xl border border-slate-200 bg-white overflow-hidden">
+      <AnimatedModal
+        open={productModalOpen}
+        onClose={() => setProductModalOpen(false)}
+        labelledBy="product-modal-title"
+        maxWidthClass="max-w-lg"
+      >
             <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200">
               <h3
                 id="product-modal-title"
@@ -708,19 +712,15 @@ export function InventarioModule({
                 </button>
               </div>
             </form>
-          </div>
-        </div>
-      )}
+      </AnimatedModal>
 
       {/* Category Modal */}
-      {categoryModalOpen && (
-        <div
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="category-modal-title"
-          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 p-4"
-        >
-          <div className="w-full max-w-md rounded-xl border border-slate-200 bg-white overflow-hidden">
+      <AnimatedModal
+        open={categoryModalOpen}
+        onClose={() => setCategoryModalOpen(false)}
+        labelledBy="category-modal-title"
+        maxWidthClass="max-w-md"
+      >
             <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200">
               <h3
                 id="category-modal-title"
@@ -792,9 +792,7 @@ export function InventarioModule({
                 </button>
               </div>
             </form>
-          </div>
-        </div>
-      )}
+      </AnimatedModal>
     </div>
   );
 }

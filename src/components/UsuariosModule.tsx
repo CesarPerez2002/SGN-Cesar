@@ -3,6 +3,7 @@ import { AlertTriangle, CheckCircle2, Pencil, Plus, Shield, X } from 'lucide-rea
 import { sgnApi } from '../api/client.ts';
 import { formatDateTime } from '../shared/businessLogic.ts';
 import type { RolUsuario, Usuario } from '../shared/types.ts';
+import { AnimatedModal, AnimatedNotice } from './MotionPrimitives.tsx';
 
 interface UsuariosModuleProps {
   users: Usuario[];
@@ -113,7 +114,7 @@ export function UsuariosModule({ users, currentUser, onDataChanged }: UsuariosMo
         </div>
       </div>
 
-      {feedback && (
+      <AnimatedNotice visible={Boolean(feedback)} noticeKey={feedback ?? 'usr-feedback'}>
         <div
           role="status"
           className="flex items-center gap-2.5 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-900"
@@ -121,7 +122,7 @@ export function UsuariosModule({ users, currentUser, onDataChanged }: UsuariosMo
           <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
           <span>{feedback}</span>
         </div>
-      )}
+      </AnimatedNotice>
 
       <section className="rounded-xl border border-slate-200 bg-white overflow-hidden">
         <div className="px-5 py-4 border-b border-slate-200 flex items-center justify-between gap-3">
@@ -196,14 +197,12 @@ export function UsuariosModule({ users, currentUser, onDataChanged }: UsuariosMo
         </div>
       </section>
 
-      {modalOpen && (
-        <div
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="user-modal-title"
-          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 p-4"
-        >
-          <div className="w-full max-w-lg rounded-xl border border-slate-200 bg-white overflow-hidden">
+      <AnimatedModal
+        open={modalOpen}
+        onClose={() => setModalOpen(false)}
+        labelledBy="user-modal-title"
+        maxWidthClass="max-w-lg"
+      >
             <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200">
               <h3
                 id="user-modal-title"
@@ -332,9 +331,7 @@ export function UsuariosModule({ users, currentUser, onDataChanged }: UsuariosMo
                 </button>
               </div>
             </form>
-          </div>
-        </div>
-      )}
+      </AnimatedModal>
     </div>
   );
 }

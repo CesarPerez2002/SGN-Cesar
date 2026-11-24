@@ -30,7 +30,14 @@ import type {
   RolUsuario,
   Venta,
 } from '../shared/types.ts';
+import { motion } from 'motion/react';
 import { FacturaModal } from './FacturaModal.tsx';
+import {
+  AnimatedModal,
+  AnimatedNotice,
+  AnimatedTabPanel,
+  SPRING_SNAPPY,
+} from './MotionPrimitives.tsx';
 
 interface VentasModuleProps {
   sales: Venta[];
@@ -298,6 +305,7 @@ export function VentasModule({
         </div>
       </div>
 
+      <AnimatedTabPanel tabKey={activeTab}>
       {activeTab === 'nueva' ? (
         <div className="grid grid-cols-1 xl:grid-cols-12 gap-6 items-start">
           {/* Catalog Selection */}
@@ -433,7 +441,7 @@ export function VentasModule({
               </span>
             </div>
 
-            {error && (
+            <AnimatedNotice visible={Boolean(error)} noticeKey={error ?? 'sale-error'}>
               <div
                 role="alert"
                 className="flex items-start gap-2.5 rounded-lg border border-red-200 bg-red-50 px-3.5 py-2.5 text-xs text-red-800"
@@ -441,29 +449,34 @@ export function VentasModule({
                 <AlertTriangle className="w-4 h-4 text-red-600 shrink-0 mt-0.5" />
                 <span>{error}</span>
               </div>
-            )}
+            </AnimatedNotice>
 
-            {successSale && (
-              <div
-                role="status"
-                className="flex items-center justify-between gap-3 rounded-lg border border-emerald-200 bg-emerald-50 px-3.5 py-3 text-xs text-emerald-900"
-              >
-                <div className="flex items-center gap-2">
-                  <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
-                  <span>
-                    Factura <strong className="font-mono">{successSale.invoiceNumber}</strong>{' '}
-                    generada. Existencias actualizadas.
-                  </span>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setSelectedInvoiceSale(successSale)}
-                  className="font-medium text-emerald-800 underline hover:text-emerald-950 whitespace-nowrap cursor-pointer"
+            <AnimatedNotice
+              visible={Boolean(successSale)}
+              noticeKey={successSale ? `sale-ok-${successSale.id}` : 'sale-ok'}
+            >
+              {successSale && (
+                <div
+                  role="status"
+                  className="flex items-center justify-between gap-3 rounded-lg border border-emerald-200 bg-emerald-50 px-3.5 py-3 text-xs text-emerald-900"
                 >
-                  Abrir factura
-                </button>
-              </div>
-            )}
+                  <div className="flex items-center gap-2">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                    <span>
+                      Factura <strong className="font-mono">{successSale.invoiceNumber}</strong>{' '}
+                      generada. Existencias actualizadas.
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setSelectedInvoiceSale(successSale)}
+                    className="font-medium text-emerald-800 underline hover:text-emerald-950 whitespace-nowrap cursor-pointer"
+                  >
+                    Abrir factura
+                  </button>
+                </div>
+              )}
+            </AnimatedNotice>
 
             <div className="space-y-3.5">
               <div>
@@ -639,15 +652,18 @@ export function VentasModule({
               </div>
             </div>
 
-            <button
+            <motion.button
               type="button"
               disabled={submitting || cartDetails.length === 0}
+              whileHover={submitting || cartDetails.length === 0 ? undefined : { scale: 1.015 }}
+              whileTap={submitting || cartDetails.length === 0 ? undefined : { scale: 0.97 }}
+              transition={SPRING_SNAPPY}
               onClick={handleSubmitSale}
               className="w-full flex items-center justify-center gap-2 rounded-lg bg-gradient-to-r from-emerald-600 to-teal-600 px-4 py-2.5 text-sm font-medium text-white hover:from-emerald-700 hover:to-teal-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors cursor-pointer whitespace-nowrap"
             >
               <Receipt className="w-4 h-4" />
               <span>{submitting ? 'Generando factura...' : 'Confirmar venta y generar factura'}</span>
-            </button>
+            </motion.button>
           </section>
         </div>
       ) : (
@@ -747,16 +763,15 @@ export function VentasModule({
           )}
         </section>
       )}
+      </AnimatedTabPanel>
 
       {/* Quick Customer Modal */}
-      {quickCustOpen && (
-        <div
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="quick-cust-title"
-          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 p-4"
-        >
-          <div className="w-full max-w-md rounded-xl border border-slate-200 bg-white overflow-hidden">
+      <AnimatedModal
+        open={quickCustOpen}
+        onClose={() => setQuickCustOpen(false)}
+        labelledBy="quick-cust-title"
+        maxWidthClass="max-w-md"
+      >
             <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200">
               <h3
                 id="quick-cust-title"
@@ -879,17 +894,13 @@ export function VentasModule({
                 </button>
               </div>
             </form>
-          </div>
-        </div>
-      )}
+      </AnimatedModal>
 
       {/* Invoice Modal */}
-      {selectedInvoiceSale && (
-        <FacturaModal
-          sale={selectedInvoiceSale}
-          onClose={() => setSelectedInvoiceSale(null)}
-        />
-      )}
+      <FacturaModal
+        sale={selectedInvoiceSale}
+        onClose={() => setSelectedInvoiceSale(null)}
+      />
     </div>
   );
 }

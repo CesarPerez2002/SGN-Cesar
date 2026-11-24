@@ -2,6 +2,7 @@ import { useMemo, useState, type FormEvent } from 'react';
 import { AlertTriangle, CheckCircle2, Pencil, Plus, Search, Users, X } from 'lucide-react';
 import { sgnApi } from '../api/client.ts';
 import type { Cliente } from '../shared/types.ts';
+import { AnimatedModal, AnimatedNotice } from './MotionPrimitives.tsx';
 
 interface ClientesModuleProps {
   customers: Cliente[];
@@ -82,7 +83,7 @@ export function ClientesModule({ customers, onDataChanged }: ClientesModuleProps
 
   return (
     <div className="space-y-6">
-      {feedback && (
+      <AnimatedNotice visible={Boolean(feedback)} noticeKey={feedback ?? 'cli-feedback'}>
         <div
           role="status"
           className="flex items-center gap-2.5 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-900"
@@ -90,7 +91,7 @@ export function ClientesModule({ customers, onDataChanged }: ClientesModuleProps
           <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
           <span>{feedback}</span>
         </div>
-      )}
+      </AnimatedNotice>
 
       <section className="rounded-xl border border-slate-200 bg-white overflow-hidden">
         <div className="p-4 border-b border-slate-200 flex flex-wrap items-center justify-between gap-3">
@@ -189,14 +190,12 @@ export function ClientesModule({ customers, onDataChanged }: ClientesModuleProps
         )}
       </section>
 
-      {modalOpen && (
-        <div
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="customer-modal-title"
-          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 p-4"
-        >
-          <div className="w-full max-w-lg rounded-xl border border-slate-200 bg-white overflow-hidden">
+      <AnimatedModal
+        open={modalOpen}
+        onClose={() => setModalOpen(false)}
+        labelledBy="customer-modal-title"
+        maxWidthClass="max-w-lg"
+      >
             <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200">
               <h3
                 id="customer-modal-title"
@@ -316,9 +315,7 @@ export function ClientesModule({ customers, onDataChanged }: ClientesModuleProps
                 </button>
               </div>
             </form>
-          </div>
-        </div>
-      )}
+      </AnimatedModal>
     </div>
   );
 }

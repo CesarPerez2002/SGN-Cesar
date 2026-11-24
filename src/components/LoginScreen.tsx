@@ -1,7 +1,9 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { AlertTriangle, Eye, EyeOff, Lock } from 'lucide-react';
+import { motion } from 'motion/react';
 import { sgnApi, setStoredToken } from '../api/client.ts';
 import type { Usuario } from '../shared/types.ts';
+import { AnimatedNotice, SPRING_SNAPPY, SPRING_SOFT } from './MotionPrimitives.tsx';
 
 interface LoginScreenProps {
   onLoginSuccess: (user: Usuario) => void;
@@ -61,8 +63,18 @@ export function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-indigo-950 to-teal-900 flex flex-col items-center justify-center p-6">
       <div className="w-full max-w-md space-y-6">
         {/* Nombre de la empresa */}
-        <header className="text-center space-y-3">
-          <div className="mx-auto w-12 h-12 rounded-xl bg-gradient-to-br from-amber-400 via-orange-500 to-rose-500 flex items-center justify-center shadow-lg">
+        <motion.header
+          initial={{ opacity: 0, y: -12, scale: 0.96 }}
+          animate={{ opacity: 1, y: 0, scale: 1 }}
+          transition={SPRING_SOFT}
+          className="text-center space-y-3"
+        >
+          <motion.div
+            initial={{ scale: 0.85, rotate: -6 }}
+            animate={{ scale: 1, rotate: 0 }}
+            transition={SPRING_SOFT}
+            className="mx-auto w-12 h-12 rounded-xl bg-gradient-to-br from-amber-400 via-orange-500 to-rose-500 flex items-center justify-center shadow-lg"
+          >
             <svg
               width="24"
               height="24"
@@ -78,7 +90,7 @@ export function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
                 strokeLinecap="round"
               />
             </svg>
-          </div>
+          </motion.div>
           <div>
             <h1 className="font-display text-2xl sm:text-3xl font-bold tracking-tight text-white text-balance">
               {businessName}
@@ -87,10 +99,15 @@ export function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
               Sistema para Gestión de Negocios
             </p>
           </div>
-        </header>
+        </motion.header>
 
         {/* Tarjeta de inicio de sesión */}
-        <main className="bg-white/95 backdrop-blur border border-white/25 rounded-2xl overflow-hidden shadow-2xl">
+        <motion.main
+          initial={{ opacity: 0, scale: 0.94, y: 16 }}
+          animate={{ opacity: 1, scale: 1, y: 0 }}
+          transition={{ ...SPRING_SOFT, delay: 0.05 }}
+          className="bg-white/95 backdrop-blur border border-white/25 rounded-2xl overflow-hidden shadow-2xl"
+        >
           <div className="h-1.5 w-full bg-gradient-to-r from-amber-400 via-rose-500 to-indigo-600" />
           <div className="p-7 sm:p-8">
             <div className="mb-6">
@@ -102,7 +119,7 @@ export function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
               </p>
             </div>
 
-            {error && (
+            <AnimatedNotice visible={Boolean(error)} noticeKey={error ?? 'login-error'}>
               <div
                 role="alert"
                 className="mb-5 flex items-start gap-2.5 rounded-lg border border-red-200 bg-red-50 px-3.5 py-2.5 text-sm text-red-800"
@@ -113,7 +130,7 @@ export function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
                 />
                 <span>{error}</span>
               </div>
-            )}
+            </AnimatedNotice>
 
             <form onSubmit={handleSubmit} className="space-y-4" noValidate>
               <div>
@@ -164,17 +181,20 @@ export function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
                 </div>
               </div>
 
-              <button
+              <motion.button
                 type="submit"
                 disabled={submitting}
+                whileHover={submitting ? undefined : { scale: 1.015 }}
+                whileTap={submitting ? undefined : { scale: 0.97 }}
+                transition={SPRING_SNAPPY}
                 className="mt-2 w-full flex items-center justify-center gap-2 rounded-lg bg-gradient-to-r from-indigo-600 via-violet-600 to-teal-600 hover:from-indigo-700 hover:via-violet-700 hover:to-teal-700 px-4 py-2.5 text-sm font-medium text-white disabled:opacity-60 transition-all cursor-pointer whitespace-nowrap shadow-sm"
               >
                 <Lock className="w-4 h-4" aria-hidden="true" />
                 <span>{submitting ? 'Validando...' : 'Ingresar al sistema'}</span>
-              </button>
+              </motion.button>
             </form>
           </div>
-        </main>
+        </motion.main>
       </div>
     </div>
   );

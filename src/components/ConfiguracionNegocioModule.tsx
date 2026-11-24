@@ -1,8 +1,10 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { AlertTriangle, Building2, CheckCircle2, Save } from 'lucide-react';
+import { motion } from 'motion/react';
 import { sgnApi } from '../api/client.ts';
 import { formatDateTime } from '../shared/businessLogic.ts';
 import type { DatosNegocio } from '../shared/types.ts';
+import { AnimatedNotice, SPRING_SNAPPY } from './MotionPrimitives.tsx';
 
 interface ConfiguracionNegocioModuleProps {
   profile: DatosNegocio;
@@ -70,7 +72,7 @@ export function ConfiguracionNegocioModule({
 
   return (
     <div className="max-w-3xl space-y-6">
-      {error && (
+      <AnimatedNotice visible={Boolean(error)} noticeKey={error ?? 'biz-error'}>
         <div
           role="alert"
           className="flex items-start gap-2.5 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800"
@@ -78,9 +80,9 @@ export function ConfiguracionNegocioModule({
           <AlertTriangle className="w-4 h-4 text-red-600 shrink-0 mt-0.5" />
           <span>{error}</span>
         </div>
-      )}
+      </AnimatedNotice>
 
-      {feedback && (
+      <AnimatedNotice visible={Boolean(feedback)} noticeKey={feedback ?? 'biz-feedback'}>
         <div
           role="status"
           className="flex items-center gap-2.5 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-900"
@@ -88,7 +90,7 @@ export function ConfiguracionNegocioModule({
           <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
           <span>{feedback}</span>
         </div>
-      )}
+      </AnimatedNotice>
 
       <section className="rounded-xl border border-slate-200 bg-white overflow-hidden">
         <div className="px-6 py-4 border-b border-slate-200 flex items-center justify-between gap-4">
@@ -238,14 +240,17 @@ export function ConfiguracionNegocioModule({
           </div>
 
           <div className="pt-4 border-t border-slate-200 flex justify-end">
-            <button
+            <motion.button
               type="submit"
               disabled={saving}
+              whileHover={saving ? undefined : { scale: 1.02 }}
+              whileTap={saving ? undefined : { scale: 0.96 }}
+              transition={SPRING_SNAPPY}
               className="inline-flex items-center gap-2 rounded-lg bg-gradient-to-r from-slate-800 to-teal-700 px-5 py-2.5 text-xs font-medium text-white hover:from-slate-900 hover:to-teal-800 disabled:opacity-50 cursor-pointer"
             >
               <Save className="w-4 h-4" />
               <span>{saving ? 'Guardando...' : 'Guardar datos del negocio'}</span>
-            </button>
+            </motion.button>
           </div>
         </form>
       </section>
