@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>SGN — Descarga oficial</title>
-  <meta name="description" content="Descarga el código fuente del Sistema para Gestión de Negocios (SGN).">
+  <meta name="description" content="Descarga el instalador del Sistema para Gestión de Negocios (SGN) v1.1.">
   <style>
     :root { --azul:#00234B; --naranja:#FD8612; --gris:#f4f6f9; --texto:#243044; --borde:#dde3ea; }
     * { box-sizing:border-box; }
@@ -32,32 +32,42 @@
   <header>
     <img src="logo.png" alt="Logotipo del SGN">
     <h1>Sistema para Gestión de Negocios</h1>
-    <p>Descarga el código fuente completo desde un solo enlace.</p>
-    <span class="chip">SGN-Cesar · v1.0</span>
+    <p>Instalación en un solo clic, sin configurar servidores ni bases de datos.</p>
+    <span class="chip">Versión 1.1 · Grupo 2 Base de Datos</span>
   </header>
 
   <main>
     <article class="tarjeta">
-      <h2>Descargar el sistema</h2>
-      <p>Archivo <code>SGN-Cesar.zip</code> con todo el código fuente del repositorio (sin el historial de Git).</p>
-      <a class="boton" href="https://github.com/CesarPerez2002/SGN-Cesar/releases/download/v1.0/SGN-Cesar.zip" download>Descargar SGN-Cesar.zip</a>
+      <h2>Descargar el instalador</h2>
+      <p>Archivo <code>SGN-Setup.exe</code> para Windows 64 bits. Incluye el programa, LocalDB y la base de datos ya inicializada.</p>
+      <a class="boton" href="https://github.com/CesarPerez2002/SGN-Cesar/releases/download/v1.0/SGN-Setup.exe" download>Descargar SGN-Setup.exe</a>
       <a class="boton secundario" href="https://github.com/CesarPerez2002/SGN-Cesar/releases/tag/v1.0">Ver publicación</a>
-      <div class="meta">Tamaño: 162,506 bytes · Publicación permanente en GitHub Releases.</div>
+      <div class="meta">56.7 MB · SHA256: 4F41825FB2ED5CA11541CC7129D0A3500BE2D5DC0354728868EE265EEEEE19BF</div>
     </article>
 
     <section>
-      <h2>Cómo ejecutarlo</h2>
+      <h2>Cómo instalarlo</h2>
       <ol>
-        <li>Descargar y descomprimir el ZIP.</li>
-        <li>Entrar a la carpeta <code>SGN-Cesar</code>.</li>
-        <li>Ejecutar <code>npm install</code>.</li>
-        <li>Ejecutar <code>npm run dev</code>.</li>
-        <li>Abrir la dirección que aparece en la terminal (normalmente <code>http://localhost:5173</code>).</li>
+        <li>Descargar <code>SGN-Setup.exe</code>.</li>
+        <li>Doble clic y seguir el asistente: <strong>Siguiente → Instalar</strong>.</li>
+        <li>Abrir el ícono <strong>SGN</strong> desde el escritorio.</li>
+        <li>Entrar con usuario <code>admin</code> o correo <code>admin@sgn.local</code>; clave <code>Admin2026!</code>.</li>
       </ol>
-      <p>Requiere Node.js 20 o superior. El sistema incluye ventas, compras, inventario, clientes, proveedores y control de acceso por roles.</p>
+      <p>Cambie la clave desde el módulo Usuarios la primera vez. Si desinstala el programa, la base de datos se conserva para no perder información.</p>
+    </section>
+
+    <section>
+      <h2>Qué incluye la versión 1.1</h2>
+      <ul>
+        <li>Punto de Venta con factura numerada automáticamente.</li>
+        <li>Elección entre <strong>Comprador final</strong> y cliente guardado.</li>
+        <li>Carrito multiproducto, total automático y descuento de stock.</li>
+        <li>Compras con proveedor, factura y suma al inventario.</li>
+        <li>Menú según el documento del proyecto y acceso por usuario o correo.</li>
+      </ul>
     </section>
   </main>
 
-  <footer><strong>Grupo Base de Datos</strong> · SGN-Cesar v1.0</footer>
+  <footer><strong>Grupo 2 Base de Datos</strong> · SGN v1.1</footer>
 </body>
 </html>
