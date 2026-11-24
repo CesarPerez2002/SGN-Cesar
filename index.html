@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>SGN — Descarga oficial</title>
+  <meta name="description" content="Descarga el código fuente del Sistema para Gestión de Negocios (SGN).">
+  <style>
+    :root { --azul:#00234B; --naranja:#FD8612; --gris:#f4f6f9; --texto:#243044; --borde:#dde3ea; }
+    * { box-sizing:border-box; }
+    body { margin:0; font-family:"Segoe UI",Roboto,Helvetica,Arial,sans-serif; color:var(--texto); background:var(--gris); line-height:1.6; }
+    header { background:var(--azul); color:#fff; padding:28px 20px; text-align:center; }
+    header img { max-width:180px; height:auto; margin-bottom:12px; }
+    header h1 { margin:0; font-size:2rem; }
+    header p { margin:6px 0 0; color:#cfdcea; }
+    .chip { display:inline-block; background:var(--naranja); color:#fff; font-weight:700; padding:4px 14px; border-radius:20px; font-size:.9rem; margin-top:14px; }
+    main { max-width:860px; margin:32px auto; padding:0 18px 40px; }
+    .tarjeta { background:#fff; border:1px solid var(--borde); border-radius:14px; padding:26px; box-shadow:0 4px 16px rgba(0,35,75,.07); }
+    .tarjeta h2 { margin:0 0 8px; color:var(--azul); }
+    .boton { display:inline-block; background:var(--naranja); color:#fff; text-decoration:none; font-weight:700; padding:12px 20px; border-radius:8px; margin-top:8px; }
+    .boton:hover { filter:brightness(1.08); }
+    .boton.secundario { background:var(--azul); }
+    .meta { font-size:.82rem; color:#6b7787; margin-top:14px; word-break:break-all; }
+    section { background:#fff; border:1px solid var(--borde); border-radius:14px; padding:24px; margin-top:18px; }
+    section h2 { color:var(--azul); margin-top:0; }
+    code { background:var(--gris); padding:2px 6px; border-radius:5px; }
+    footer { background:var(--azul); color:#cfdcea; text-align:center; padding:18px; font-size:.9rem; }
+    footer strong { color:#fff; }
+  </style>
+</head>
+<body>
+  <header>
+    <img src="logo.png" alt="Logotipo del SGN">
+    <h1>Sistema para Gestión de Negocios</h1>
+    <p>Descarga el código fuente completo desde un solo enlace.</p>
+    <span class="chip">SGN-Cesar · v1.0</span>
+  </header>
+
+  <main>
+    <article class="tarjeta">
+      <h2>Descargar el sistema</h2>
+      <p>Archivo <code>SGN-Cesar.zip</code> con todo el código fuente del repositorio (sin el historial de Git).</p>
+      <a class="boton" href="https://github.com/CesarPerez2002/SGN-Cesar/releases/download/v1.0/SGN-Cesar.zip" download>Descargar SGN-Cesar.zip</a>
+      <a class="boton secundario" href="https://github.com/CesarPerez2002/SGN-Cesar/releases/tag/v1.0">Ver publicación</a>
+      <div class="meta">Tamaño: 162,506 bytes · Publicación permanente en GitHub Releases.</div>
+    </article>
+
+    <section>
+      <h2>Cómo ejecutarlo</h2>
+      <ol>
+        <li>Descargar y descomprimir el ZIP.</li>
+        <li>Entrar a la carpeta <code>SGN-Cesar</code>.</li>
+        <li>Ejecutar <code>npm install</code>.</li>
+        <li>Ejecutar <code>npm run dev</code>.</li>
+        <li>Abrir la dirección que aparece en la terminal (normalmente <code>http://localhost:5173</code>).</li>
+      </ol>
+      <p>Requiere Node.js 20 o superior. El sistema incluye ventas, compras, inventario, clientes, proveedores y control de acceso por roles.</p>
+    </section>
+  </main>
+
+  <footer><strong>Grupo Base de Datos</strong> · SGN-Cesar v1.0</footer>
+</body>
+</html>
